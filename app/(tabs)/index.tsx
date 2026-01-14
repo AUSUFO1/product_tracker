@@ -1,98 +1,220 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useProducts } from "@/context/ProductContext";
+import { COLORS } from "@/utils/theme";
+import { useRouter } from "expo-router";
+import {
+  Alert,
+  FlatList,
+  Image,
+  ListRenderItem,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  imageUri: string;
+}
 
-export default function HomeScreen() {
+export default function ProductListScreen() {
+  const { products, maxReached, removeProduct } = useProducts();
+  const router = useRouter();
+
+  const handleDelete = (id: string, name: string) => {
+    Alert.alert(
+      "Delete Product",
+      `Remove "${name}" from your inventory?`,
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: () => removeProduct(id) 
+        },
+      ]
+    );
+  };
+
+  const renderProduct: ListRenderItem<Product> = ({ item }) => (
+    <View style={styles.card}>
+      <Image source={{ uri: item.imageUri }} style={styles.image} />
+
+      <View style={styles.info}>
+        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
+        <Text style={styles.price}>₦{item.price.toLocaleString()}</Text>
+      </View>
+
+      <TouchableOpacity
+        style={styles.deleteButton}
+        onPress={() => handleDelete(item.id, item.name)}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.deleteIcon}>✕</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  const renderEmpty = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyEmoji}>📦</Text>
+      <Text style={styles.empty}>No products yet</Text>
+      <Text style={styles.emptySubtext}>
+        Tap "Add Product" below to get started
+      </Text>
+    </View>
+  );
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <View style={styles.header}>
+        <Text style={styles.title}>My Products</Text>
+        <Text style={styles.counter}>
+          {products.length} / 5
+        </Text>
+      </View>
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id}
+        renderItem={renderProduct}
+        contentContainerStyle={products.length === 0 && styles.emptyList}
+        ListEmptyComponent={renderEmpty}
+        showsVerticalScrollIndicator={false}
+        style={styles.list}
+      />
+
+      <TouchableOpacity
+        style={[styles.button, maxReached && styles.disabled]}
+        onPress={() => router.push("/add-product")}
+        disabled={maxReached}
+        activeOpacity={0.85}
+      >
+        <Text style={styles.buttonText}>
+          {maxReached ? "Limit Reached (5/5)" : "+ Add Product"}
+        </Text>
+      </TouchableOpacity>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.background,
   },
-  stepContainer: {
-    gap: 8,
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 16,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: "bold",
+    color: COLORS.gold,
+  },
+  counter: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: COLORS.white,
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  list: {
+    paddingHorizontal: 16,
+  },
+  card: {
+    flexDirection: "row",
+    backgroundColor: COLORS.primary,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    alignItems: "center",
+  },
+  image: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+    backgroundColor: COLORS.muted,
+  },
+  info: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.gold,
+    marginBottom: 4,
+  },
+  price: {
+    fontSize: 15,
+    color: COLORS.white,
+    fontWeight: "500",
+  },
+  deleteButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(255, 59, 48, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 8,
+  },
+  deleteIcon: {
+    color: "#FF3B30",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  emptyList: {
+    flex: 1,
+    justifyContent: "center",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    paddingVertical: 40,
+  },
+  emptyEmoji: {
+    fontSize: 64,
+    marginBottom: 16,
+  },
+  empty: {
+    textAlign: "center",
+    color: COLORS.white,
+    fontSize: 18,
+    fontWeight: "600",
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  emptySubtext: {
+    textAlign: "center",
+    color: COLORS.muted,
+    fontSize: 14,
+  },
+  button: {
+    backgroundColor: COLORS.gold,
+    padding: 16,
+    borderRadius: 12,
+    alignItems: "center",
+    marginTop: 12,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  disabled: {
+    backgroundColor: COLORS.muted,
+    opacity: 0.6,
+  },
+  buttonText: {
+    color: COLORS.background,
+    fontWeight: "bold",
+    fontSize: 16,
   },
 });
